@@ -1,5 +1,3 @@
-# Updating client.py to send function names and arguments to the scheduler
-
 import requests
 
 class TaskClient:
@@ -30,21 +28,3 @@ class TaskClient:
         response = requests.get(f"{self.scheduler_url}/get_tasks")
         return response.json()
 
-# Example usage
-# client = TaskClient("http://localhost:5000")
-# mock_ml_task = client.create_task("mock_ml_task", 100, "logistic_regression")
-# task_response = client.send_task(mock_ml_task)
-# print("Task Submitted:", task_response)
-# mock_ml_task = client.create_task("mock_cv_task", 10, "neural_network")
-# task_response = client.send_task(mock_ml_task)
-# print("Task Submitted:", task_response)
-# mock_ml_task = client.create_task("mock_ml_task", 1200, "clustering")
-# task_response = client.send_task(mock_ml_task)
-# print("Task Submitted:", task_response)
-
-# task_status = client.request_task_status(58)
-# print("Task Status:", task_status)
-
-
-# This client now creates tasks specifying the function name and its arguments, then sends them to the scheduler.
-# Next, we'll update the scheduler to handle these tasks by executing the corresponding functions from defined_tasks.py.

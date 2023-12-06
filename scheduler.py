@@ -1,9 +1,7 @@
-# Updating scheduler.py to execute tasks by calling functions from defined_tasks.py
-
 from flask import Flask, request, jsonify
 from threading import Thread
 import queue
-import defined_functions  # Importing the defined tasks module
+import defined_functions
 import psutil
 import GPUtil
 from datetime import datetime
@@ -15,14 +13,14 @@ CORS(app)
 class TaskScheduler:
 
     def __init__(self, max_workers, max_task_retries=3):
-        self.tasks = {}  # Using a dictionary to store tasks
+        self.tasks = {}  
         self.max_workers = max_workers
         self.max_task_retries = max_task_retries
         self.task_status = {}
         self.worker_status = {'busy': 0, 'idle': max_workers}
         self.workers = [Thread(target=self.worker) for _ in range(max_workers)]
         self.task_id_counter = 0
-        self.task_queue = queue.Queue()  # Maintaining an actual queue for task processing order
+        self.task_queue = queue.Queue()
 
 
     def worker(self):

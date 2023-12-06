@@ -1,4 +1,3 @@
-# defined_tasks.py
 import time
 import random
 
