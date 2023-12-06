@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Task Monitoring Dashboard</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <header>
+        <h1>Task Monitoring Dashboard</h1>
+    </header>
+    <main>
+        <section id="task-monitor">
+            <h2>Task Monitoring</h2>
+            <div id="task-list" class="scrollable-list"></div>
+        </section>
+        <section id="monitoring-data">
+            <h2>Monitoring Data</h2>
+            <div>
+                <canvas id="ramChart" width="400" height="200"></canvas>
+                <canvas id="cpuChart" width="400" height="200"></canvas>
+                <canvas id="workerChart" width="400" height="200"></canvas>
+                <canvas id="diskChart" width="400" height="200"></canvas>
+            </div>
+        </section>
+    </main>
+    <script src="script.js"></script>
+</body>
+</html>

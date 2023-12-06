@@ -1,0 +1,51 @@
+body {
+    font-family: Arial, sans-serif;
+    background-color: #fff4e6;
+    color: #4d4d4d;
+}
+
+header {
+    background-color: #ffcc00;
+    color: #fff;
+    text-align: center;
+    padding: 10px 0;
+}
+
+section {
+    margin: 20px;
+    padding: 15px;
+    border: 1px solid #ffcc00;
+}
+
+.scrollable-list {
+    max-height: 400px;
+    overflow-y: auto;
+    border: 1px solid #ddd;
+    padding: 10px;
+}
+
+.task-item {
+    padding: 10px;
+    margin-bottom: 10px;
+    background-color: #f2f2f2;
+    cursor: pointer;
+    border: 1px solid #ddd;
+}
+
+.task-item:hover {
+    background-color: #e6e6e6;
+}
+
+.cancel-task-btn {
+    display: none;
+    background-color: #ff5733;
+    color: #fff;
+    border: none;
+    padding: 5px 10px;
+    margin-top: 5px;
+    cursor: pointer;
+}
+
+.cancel-task-btn:hover {
+    background-color: #e84118;
+}

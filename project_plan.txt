@@ -1,0 +1,399 @@
+Design a Distributed Task Scheduler
+Python Assignment for Engineering @ Creative Fabrica
+Background
+You are tasked with designing a distributed task scheduler system to manage and execute tasks
+across multiple workers. The goal is to efficiently distribute and execute tasks in a distributed
+environment, allowing for scalability and fault tolerance.
+Requirements
+Task Definitions:
+● Design a system that can handle different types of tasks, each represented as a
+Python function with parameters.
+● Tasks can be submitted for execution with specific parameters.
+Task Queuing:
+● Implement a task queue where submitted tasks are stored until they are
+executed.
+● Ensure that tasks are picked up in the order they are received.
+Distributed Execution:
+● Design a mechanism to distribute tasks across multiple workers. Workers can
+execute tasks in parallel.
+● Implement load balancing to evenly distribute tasks among workers.
+Fault Tolerance:
+● Ensure that the system can handle failures of workers and reschedule tasks on
+available ones.
+● Implement mechanisms for task retries in case of failures.
+Latency Optimisation:
+● Latency of tasks, as measured by the duration between “time of task submission”
+and “time of task completion”, should be minimized across all tasks.
+Status and Reporting:
+● Provide a way to query the status of tasks, including whether they are pending, in
+progress, or completed.
+● Implement logging and reporting mechanisms to track the execution of tasks.
+Python Client:
+● Create a Python client library that allows users to submit tasks to the scheduler.
+Automation:
+● Once started/deployed, the system runs on its own, without needing human
+intervention/operation.
+Documentation:
+● Write documentation that explains the architecture, how to use the system, and
+any assumptions made during the design.
+Bonus (Optional)
+● Implement a web-based dashboard for monitoring and managing tasks.
+● Explore the use of message queues (e.g., RabbitMQ) for task distribution.
+● Develop a mechanism for prioritizing tasks.
+Submission
+Candidates should submit a design document, code for the task scheduler, and any other
+relevant files to run their code. The assignment is expected to take approximately one hour, so
+the focus should be on design and a basic working implementation as defined by the following
+criteria:
+● It runs on a laptop without requiring runtime connectivity to external compute and/or
+storage.
+● Its dependencies are included/provided with installation scripts, so it runs on any
+Unix(-like) OS with Internet connection.
+Detailed testing and fine-tuning can be omitted for this assignment.
+
+Above is my assignment.
+I want you to act like a python expert and help me implementing an assignment. You'll follow my lead and implement the python code. You'll not suggest anything if I didn't ask you specifically. Here is what I want:
+client.py
+- a client that creates mock tasks in machine learning and computer vision
+- client can send task process requests
+- client can send task status requests
+- client can send monitoring requests
+
+scheduler.py
+- a scheduler that listens receives task requests.
+- scheduler assigns tasks to workers that can work in parallel.(Max N workers)
+- scheduler that can receive status requests for tasks and responds in (in progress, on hold and completed)
+- scheduler keeps the record of unfinished tasks
+- scheduler can receive resource monitoring queries(cpu, gpu, ram, disk, busy workers)
+- scheduler keeps track of the time spent for a task(from task submission to completion)
+
+I want you to be brief when explaining stuff. Implement step by step and ask me if you should continue. If you are ready we can start.
+
+
+
+
+scheduler.py
+from flask import Flask, request, jsonify
+from threading import Thread
+import queue
+import time
+import defined_functions  # Importing the defined tasks module
+
+app = Flask(__name__)
+
+class TaskScheduler:
+    def __init__(self, max_workers):
+        self.task_queue = queue.Queue()
+        self.max_workers = max_workers
+        self.task_status = {}
+        self.worker_status = {'busy': 0, 'idle': max_workers}  # Tracking busy and idle workers
+        self.workers = [Thread(target=self.worker) for _ in range(max_workers)]
+        self.task_id_counter = 0
+
+    def worker(self):
+        while True:
+            task = self.task_queue.get()
+            if task is None:
+                break
+            self.worker_status['busy'] += 1
+            self.worker_status['idle'] -= 1
+            self.execute_task(task)
+            self.worker_status['busy'] -= 1
+            self.worker_status['idle'] += 1
+            self.task_queue.task_done()
+
+    def execute_task(self, task):
+        # Execute the task using the function name and arguments from defined_tasks.py
+        function_name = task["function_name"]
+        arguments = task["arguments"]
+        try:
+            task_function = getattr(defined_functions, function_name)
+            result = task_function(*arguments)
+            self.task_status[task["id"]] = "Completed"
+            print(result)
+        except AttributeError:
+            self.task_status[task["id"]] = "Failed: Function not found"
+
+    def add_task(self, task_data):
+        task_id = self.task_id_counter
+        task = {"id": task_id, "function_name": task_data["function_name"], "arguments": task_data["arguments"]}
+        self.task_queue.put(task)
+        # print(task)
+        self.task_status[task_id] = "On Hold"
+        self.task_id_counter += 1
+        return task_id
+
+    def get_task_status(self, task_id):
+        return self.task_status.get(task_id, "Unknown")
+
+    def get_monitoring_data(self):
+        # Return the monitoring data including the number of idle workers
+        return {
+            "CPU": 0,  # Placeholder for real CPU usage
+            "GPU": 0,  # Placeholder for real GPU usage
+            "RAM": 0,  # Placeholder for real RAM usage
+            "Disk": 0,  # Placeholder for real Disk usage
+            "Idle Workers": self.worker_status['idle']
+        }
+
+
+    def start(self):
+        for worker in self.workers:
+            worker.start()
+
+    def stop(self):
+        for _ in self.workers:
+            self.task_queue.put(None)
+        for worker in self.workers:
+            worker.join()
+
+scheduler = TaskScheduler(max_workers=5)
+scheduler.start()
+
+@app.route('/submit_task', methods=['POST'])
+def submit_task():
+    task_data = request.json
+    task_id = scheduler.add_task(task_data)
+    return jsonify({"task_id": task_id})
+
+@app.route('/task_status/<int:task_id>', methods=['GET'])
+def task_status(task_id):
+    status = scheduler.get_task_status(task_id)
+    return jsonify({"task_id": task_id, "status": status})
+
+@app.route('/monitoring_data', methods=['GET'])
+def monitoring_data():
+    data = scheduler.get_monitoring_data()
+    return jsonify(data)
+
+def run_scheduler_server():
+    app.run(port=5000)
+
+server_thread = Thread(target=run_scheduler_server)
+server_thread.start()
+
+client.py
+import requests
+import json
+
+class TaskClient:
+    def __init__(self, scheduler_url):
+        self.scheduler_url = scheduler_url
+
+    def create_task(self, function_name, *args):
+        # This method will create a task with the specified function name and arguments
+        return {"function_name": function_name, "arguments": args}
+
+    def send_task(self, task):
+        # Sending a task to the scheduler via HTTP POST request
+        response = requests.post(f"{self.scheduler_url}/submit_task", json=task)
+        return response.json()
+
+    def request_task_status(self, task_id):
+        # Requesting the status of a task via HTTP GET request
+        response = requests.get(f"{self.scheduler_url}/task_status/{task_id}")
+        return response.json()
+
+    def request_monitoring_data(self):
+        # Requesting resource monitoring data via HTTP GET request
+        response = requests.get(f"{self.scheduler_url}/monitoring_data")
+        return response.json()
+
+create_task.py
+from client import TaskClient
+import random
+
+
+client = TaskClient("http://localhost:5000")
+
+task_functions = ["mock_ml_task", "mock_cv_task"]
+task_types = {
+    "mock_ml_task" : ["Random Forest", "Support Vector Machines (SVM)", "K-Means Clustering", "Gradient Boosting", "Principal Component Analysis (PCA)"],
+    "mock_cv_task" : ["Object Detection", "Image Segmentation", "Background Subtraction", "Field Registration", "Facial Recognition", "Gender and Age Prediction"]
+}
+
+for i in range(5):
+    task_function = random.choice(task_functions)
+    task_type = random.choice(task_types[task_function])
+    mock_ml_task = client.create_task(task_function, random.randint(1,20) * 1000, task_type)
+    task_response = client.send_task(mock_ml_task)
+    print("Task Submitted:", task_response)
+
+This is how my project looks like now. Please implement a web based dashboard that has the functionalities below.
+- monitors the tasks
+- creates task with a button using the approach in create_task.py
+- lists the tasks with their status and if they are finished how much time it took. Also show the function arguments
+- select a task from list and if I want to remove it from the queue, remove it with a button
+
+
+Here is my scheduler class:
+scheduler.py
+from flask import Flask, request, jsonify
+from threading import Thread
+import queue
+import time
+import defined_functions  # Importing the defined tasks module
+import psutil
+import GPUtil
+
+app = Flask(__name__)
+
+class TaskScheduler:
+
+    def __init__(self, max_workers):
+        self.tasks = {}  # Using a dictionary to store tasks
+        self.max_workers = max_workers
+        self.task_status = {}
+        self.worker_status = {'busy': 0, 'idle': max_workers}
+        self.workers = [Thread(target=self.worker) for _ in range(max_workers)]
+        self.task_id_counter = 0
+        self.task_queue = queue.Queue()  # Maintaining an actual queue for task processing order
+
+
+    def worker(self):
+        while True:
+            task_id = self.task_queue.get()
+            if task_id is None:
+                break
+            task = self.tasks.get(task_id)
+            self.worker_status['busy'] += 1
+            self.worker_status['idle'] -= 1
+            self.execute_task(task)
+            self.worker_status['busy'] -= 1
+            self.worker_status['idle'] += 1
+            self.task_queue.task_done()
+
+
+    def execute_task(self, task):
+        # Execute the task using the function name and arguments from defined_tasks.py
+        function_name = task["function_name"]
+        arguments = task["arguments"]
+        try:
+            task_function = getattr(defined_functions, function_name)
+            result = task_function(*arguments)
+            self.task_status[task["id"]] = "Completed"
+            print(result)
+        except AttributeError:
+            self.task_status[task["id"]] = "Failed: Function not found"
+    
+    def add_task(self, task_data):
+        task_id = self.task_id_counter
+        task = {"id": task_id, "function_name": task_data["function_name"], "arguments": task_data["arguments"]}
+        self.tasks[task_id] = task
+        self.task_queue.put(task_id)
+        self.task_status[task_id] = "On Hold"
+        self.task_id_counter += 1
+        return task_id
+
+
+    def get_task_status(self, task_id):
+        return self.task_status.get(task_id, "Unknown")
+
+    def get_monitoring_data(self):
+        # CPU usage in percentage
+        cpu_usage = psutil.cpu_percent(interval=0.2)
+
+        # RAM usage
+        ram = psutil.virtual_memory()
+        ram_allocated = f"{ram.used / (1024**3):.2f} GB"
+        ram_total = f"{ram.total / (1024**3):.2f} GB"
+        ram_usage = f"{ram.percent} %"
+
+        # GPU usage and GPU RAM
+        gpus = GPUtil.getGPUs()
+        if gpus:
+            gpu = gpus[0]  # Assuming a single GPU
+            gpu_memory_util = f"{gpu.memoryUtil * 100}%"
+            gpu_usage = f"{gpu.load * 100}%"
+            gpu_memory_allocated = gpu.memoryUsed
+            gpu_memory_total = gpu.memoryTotal
+        else:
+            gpu_usage = "Not Available"
+            gpu_memory_allocated = "Not Available"
+            gpu_memory_total = "Not Available"
+            gpu_memory_util = "Not Available"
+
+        # Disk usage
+        disk = psutil.disk_usage('/')
+        disk_usage = f"{disk.used / (1024**3):.2f} GB / {disk.total / (1024**3):.2f} GB ({disk.percent}%)"
+
+        return {
+            "CPU": cpu_usage,
+            "RAM Allocated": ram_allocated,
+            "RAM Total": ram_total,
+            "RAM Usage": ram_usage,
+            "GPU Usage": gpu_usage,
+            "GPU RAM Allocated": gpu_memory_allocated,
+            "GPU RAM Total": gpu_memory_total,
+            "GPU RAM Usage": gpu_memory_util,
+            "Disk": disk_usage,
+            "Idle Workers": self.worker_status['idle'],
+            "Busy Workers": self.worker_status['busy'],
+            "Total Workers": self.max_workers
+        }
+    
+    def get_all_tasks(self):
+        # Return a list of all tasks with their details
+        return [{"id": task_id, "status": self.task_status.get(task_id, "Unknown"), "arguments": task["arguments"], "task": task["function_name"]}
+                for task_id, task in self.tasks.items()]
+    
+    def remove_task(self, task_id):
+        # Logic to remove a task from the queue
+        if task_id in self.task_queue:
+            del self.task_queue[task_id]
+            return True
+        return False
+
+    def start(self):
+        for worker in self.workers:
+            worker.start()
+
+    def stop(self):
+        for _ in self.workers:
+            self.task_queue.put(None)
+        for worker in self.workers:
+            worker.join()
+
+scheduler = TaskScheduler(max_workers=5)
+scheduler.start()
+
+# Flask endpoint
+@app.route('/remove_task/<int:task_id>', methods=['DELETE'])
+def remove_task(task_id):
+    success = scheduler.remove_task(task_id)
+    return jsonify({"success": success})
+
+# Flask endpoint
+@app.route('/get_tasks', methods=['GET'])
+def get_tasks():
+    tasks = scheduler.get_all_tasks()
+    return jsonify(tasks)
+
+@app.route('/submit_task', methods=['POST'])
+def submit_task():
+    task_data = request.json
+    task_id = scheduler.add_task(task_data)
+    return jsonify({"task_id": task_id})
+
+@app.route('/task_status/<int:task_id>', methods=['GET'])
+def task_status(task_id):
+    status = scheduler.get_task_status(task_id)
+    return jsonify({"task_id": task_id, "status": status})
+
+@app.route('/monitoring_data', methods=['GET'])
+def monitoring_data():
+    data = scheduler.get_monitoring_data()
+    return jsonify(data)
+
+def run_scheduler_server():
+    app.run(port=5000)
+
+server_thread = Thread(target=run_scheduler_server)
+server_thread.start()
+
+
+Please implement a web based dashboard that has the functionalities below.
+- monitors the tasks
+- creates task with a button using the approach in create_task.py
+- lists the tasks with their status and if they are finished how much time it took. Also show the function arguments
+- select a task from list and if I want to remove it from the queue, remove it with a button
